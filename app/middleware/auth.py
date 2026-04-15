@@ -1,7 +1,7 @@
 # middleware/auth.py — Supabase JWT verification dependency for FastAPI routes.
 from fastapi import Depends, HTTPException, Header
 from supabase import create_client, Client
-from app.config import SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY
+from config import SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY
 
 # Module-level admin client — initialized once at import time.
 # Uses service role key to verify user tokens server-side.

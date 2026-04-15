@@ -76,7 +76,7 @@ SUPABASE_ANON_KEY: str = os.getenv("SUPABASE_ANON_KEY", "")
 SUPABASE_JWT_SECRET: str = os.getenv("SUPABASE_JWT_SECRET", "")
 ```
 
-Verify: `python -c "from app.config import SUPABASE_JWT_SECRET; print('ok')"` in container.
+Verify: `python -c "from config import SUPABASE_JWT_SECRET; print('ok')"` in container.
 
 **1.3 — Update `.env.example`**
 
@@ -182,7 +182,7 @@ Create `app/middleware/auth.py` with `get_current_user` FastAPI dependency. Upda
 ```python
 from fastapi import Depends, HTTPException, Header
 import jwt
-from app.config import SUPABASE_JWT_SECRET
+from config import SUPABASE_JWT_SECRET
 
 async def get_current_user(authorization: str = Header(...)) -> str:
     """
@@ -235,8 +235,8 @@ Note: Check `db/init.sql` for exact column name — it's `user_id` not `id` per 
 ### Verification
 ```bash
 # Syntax check
-docker compose exec career-coach python -c "from app.middleware.auth import get_current_user; print('ok')"
-docker compose exec career-coach python -c "from app.db import get_or_create_user; print('ok')"
+docker compose exec career-coach python -c "from middleware.auth import get_current_user; print('ok')"
+docker compose exec career-coach python -c "from db import get_or_create_user; print('ok')"
 ```
 
 ---
@@ -262,7 +262,7 @@ class ChatRequest(BaseModel):
 
 Add import at top:
 ```python
-from app.middleware.auth import get_current_user
+from middleware.auth import get_current_user
 from app import db as db_module
 ```
 
@@ -288,7 +288,7 @@ All references to `body.user_id` in chat.py (lines 38, 42, 60, 67, 71, 81) becom
 
 Add imports:
 ```python
-from app.middleware.auth import get_current_user
+from middleware.auth import get_current_user
 from app import db as db_module
 ```
 
@@ -322,7 +322,7 @@ async def upload_document(
 **4.4 — Update `app/routers/files.py`**
 
 ```python
-from app.middleware.auth import get_current_user
+from middleware.auth import get_current_user
 
 @router.post("/files/save")
 async def save_file(body: SaveFileRequest, auth_id: str = Depends(get_current_user)):
@@ -541,7 +541,7 @@ docker compose exec career-coach python -c "import jwt; print(jwt.__version__)"
 
 **6.3 — Verify new env vars are present**
 ```bash
-docker compose exec career-coach python -c "from app.config import SUPABASE_JWT_SECRET; print('secret loaded:', bool(SUPABASE_JWT_SECRET))"
+docker compose exec career-coach python -c "from config import SUPABASE_JWT_SECRET; print('secret loaded:', bool(SUPABASE_JWT_SECRET))"
 ```
 
 **6.4 — Smoke test unauthenticated request (should 401)**
@@ -710,7 +710,7 @@ Replace the file's content. Keep SYSTEM_PROMPT for backward compatibility (legac
 import json
 from typing import Optional
 import anthropic
-from app.config import ANTHROPIC_API_KEY, AGENT_MODELS
+from config import ANTHROPIC_API_KEY, AGENT_MODELS
 
 _client = anthropic.Anthropic(api_key=ANTHROPIC_API_KEY)
 
@@ -755,7 +755,7 @@ In the `stream_agent` function, after `on_complete(full_response)` is called and
 ```python
 # After existing on_complete call (line ~186):
 if agent_id == "agent2" and user_id:
-    from app.agents.agent4_validator import validate_resume
+    from agents.agent4_validator import validate_resume
     from app import db
     context = await db.retrieve_resume_context(user_id)
     if context and context.get("fact_sheet"):
@@ -1060,8 +1060,8 @@ docker compose logs career-coach --tail 50
 **10.2 — Verify all imports resolve**
 ```bash
 docker compose exec career-coach python -c "
-from app.agents.agent4_validator import validate_resume, SYSTEM_PROMPT
-from app.middleware.auth import get_current_user
+from agents.agent4_validator import validate_resume, SYSTEM_PROMPT
+from middleware.auth import get_current_user
 import jwt
 print('all imports ok')
 "

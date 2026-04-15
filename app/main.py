@@ -8,9 +8,9 @@ from fastapi import FastAPI
 from fastapi.responses import Response
 from fastapi.staticfiles import StaticFiles
 
-from app import db
-from app.config import SUPABASE_URL, SUPABASE_ANON_KEY
-from app.routers import chat, files, upload
+import db
+from config import SUPABASE_URL, SUPABASE_ANON_KEY
+from routers import chat, files, upload
 
 
 @asynccontextmanager

@@ -7,9 +7,9 @@ from pathlib import Path
 
 from fastapi import APIRouter, Depends, HTTPException
 
-from app.config import OUTPUTS_DIR
-from app.middleware.auth import get_current_user
-from app.models import ListFilesResponse, SaveFileRequest, SaveFileResponse
+from config import OUTPUTS_DIR
+from middleware.auth import get_current_user
+from models import ListFilesResponse, SaveFileRequest, SaveFileResponse
 
 router = APIRouter(prefix="/files")
 

@@ -8,12 +8,12 @@ from typing import Optional
 
 import anthropic
 
-from app.config import ANTHROPIC_API_KEY, AGENT_MODELS, GENERAL_MODEL
-from app.agents.agent1_intake import SYSTEM_PROMPT as INTAKE_PROMPT
-from app.agents.agent2_resume import SYSTEM_PROMPT as RESUME_PROMPT
-from app.agents.agent3_interview import SYSTEM_PROMPT as INTERVIEW_PROMPT
-from app.agents.agent4_validator import SYSTEM_PROMPT as VALIDATOR_PROMPT
-from app.tracing import Trace, logger
+from config import ANTHROPIC_API_KEY, AGENT_MODELS, GENERAL_MODEL
+from agents.agent1_intake import SYSTEM_PROMPT as INTAKE_PROMPT
+from agents.agent2_resume import SYSTEM_PROMPT as RESUME_PROMPT
+from agents.agent3_interview import SYSTEM_PROMPT as INTERVIEW_PROMPT
+from agents.agent4_validator import SYSTEM_PROMPT as VALIDATOR_PROMPT
+from tracing import Trace, logger
 
 _client = anthropic.Anthropic(api_key=ANTHROPIC_API_KEY)
 _async_client = anthropic.AsyncAnthropic(api_key=ANTHROPIC_API_KEY)
@@ -294,7 +294,7 @@ async def stream_agent(
         # Always yield a [VALIDATION] event so the result is never silently swallowed.
         if agent_id == "agent2" and user_id:
             try:
-                from app.agents.agent4_validator import validate_resume
+                from agents.agent4_validator import validate_resume
                 from app import db
                 context = await db.retrieve_resume_context(user_id)
                 if context and context.get("fact_sheet"):

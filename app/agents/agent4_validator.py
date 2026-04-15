@@ -3,7 +3,7 @@
 import json
 from pathlib import Path
 import anthropic
-from app.config import ANTHROPIC_API_KEY, AGENT_MODELS
+from config import ANTHROPIC_API_KEY, AGENT_MODELS
 
 SYSTEM_PROMPT = """
 # Agent 4 — Truth Validator

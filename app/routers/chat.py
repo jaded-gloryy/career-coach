@@ -7,10 +7,10 @@ from fastapi import APIRouter, Depends, HTTPException
 from fastapi.responses import StreamingResponse
 
 from app import db, session
-from app.agents.base import AGENT_PROMPTS, call_agent, stream_agent, stream_interview_session
-from app.middleware.auth import get_current_user
-from app.db import get_or_create_user
-from app.models import ChatRequest, ChatResponse, ConfirmSaveRequest
+from agents.base import AGENT_PROMPTS, call_agent, stream_agent, stream_interview_session
+from middleware.auth import get_current_user
+from db import get_or_create_user
+from models import ChatRequest, ChatResponse, ConfirmSaveRequest
 
 router = APIRouter()
 

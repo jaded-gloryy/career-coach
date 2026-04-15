@@ -12,9 +12,9 @@ from typing import Optional
 import httpx
 from pydantic import BaseModel
 
-from app.config import ANTHROPIC_API_KEY
+from config import ANTHROPIC_API_KEY
 import anthropic
-from app.tracing import logger
+from tracing import logger
 
 _client = anthropic.AsyncAnthropic(api_key=ANTHROPIC_API_KEY)
 
