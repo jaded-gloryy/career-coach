@@ -10,21 +10,22 @@ RUN npm run build
 FROM python:3.11-slim
 COPY --from=ghcr.io/astral-sh/uv:latest /uv /usr/local/bin/uv
 
+# Install curl so the Docker health check can actually run
+RUN apt-get update && apt-get install -y --no-install-recommends curl && rm -rf /var/lib/apt/lists/*
+
 WORKDIR /app
 
-# Copy dependencies first for caching
 COPY pyproject.toml .
 RUN uv pip install --system .
 
-# Copy the CONTENTS of your app folder to /app in the container
-# This puts main.py at /app/main.py instead of /app/app/main.py
+# Copy the contents of your local 'app' folder into the container's /app
 COPY app/ .
 
-# Copy frontend build into the static folder
+# Copy React build results into the container's static folder
 COPY --from=frontend-build /frontend/dist/ ./static/
 
 RUN mkdir -p /app/outputs
 EXPOSE 8000
 
-# Updated entry point: now it's just main:app
+# Entry point must match the flat structure (main.py is in the current directory)
 CMD ["uvicorn", "main:app", "--host", "0.0.0.0", "--port", "8000"]
