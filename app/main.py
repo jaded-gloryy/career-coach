@@ -1,5 +1,7 @@
 # main.py — FastAPI application entry point.
 # Mounts static files, includes routers, and manages the DB connection pool lifecycle.
+import os
+from pathlib import Path
 
 from contextlib import asynccontextmanager
 
@@ -37,8 +39,11 @@ def env_js():
     )
     return Response(content=js, media_type="application/javascript")
 
+# Get the absolute path to the 'static' directory
+BASE_DIR = Path(__file__).resolve().parent
+static_path = os.path.join(BASE_DIR, "static")
 
-app.mount("/", StaticFiles(directory="app/static", html=True), name="static")
+app.mount("/", StaticFiles(directory=static_path, html=True), name="static")
 
 
 @app.get("/health")
