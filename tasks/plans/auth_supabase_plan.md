@@ -263,7 +263,7 @@ class ChatRequest(BaseModel):
 Add import at top:
 ```python
 from middleware.auth import get_current_user
-from app import db as db_module
+import db as db_module
 ```
 
 Update both endpoints to inject auth and resolve internal user_id:
@@ -289,7 +289,7 @@ All references to `body.user_id` in chat.py (lines 38, 42, 60, 67, 71, 81) becom
 Add imports:
 ```python
 from middleware.auth import get_current_user
-from app import db as db_module
+import db as db_module
 ```
 
 Update `POST /upload/resume` (line 41):
@@ -756,7 +756,7 @@ In the `stream_agent` function, after `on_complete(full_response)` is called and
 # After existing on_complete call (line ~186):
 if agent_id == "agent2" and user_id:
     from agents.agent4_validator import validate_resume
-    from app import db
+    import db
     context = await db.retrieve_resume_context(user_id)
     if context and context.get("fact_sheet"):
         try:
@@ -879,7 +879,7 @@ async def stream_interview_session(
     Reads session state from the last assistant message metadata.
     Runs Haiku eval → Sonnet coaching for each answer.
     """
-    from app import db
+    import db
     from pathlib import Path
 
     eval_prompt_template = Path("prompts/agent4_interview_evaluation.txt").read_text()

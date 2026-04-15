@@ -107,7 +107,7 @@ async def _augment_system_prompt(
             trace.context_injected = {"user_id": None}
         return system_prompt
 
-    from app import db  # local import to avoid circular deps at module load
+    import db  # local import to avoid circular deps at module load
 
     ctx_info: dict = {}
 
@@ -211,7 +211,7 @@ def _build_messages(history: list, user_message: str) -> list[dict]:
 async def _save_trace(trace: Trace, user_id: Optional[str], conversation_id: Optional[str]) -> None:
     """Persist a completed trace to request_traces. Errors are logged, never re-raised."""
     try:
-        from app import db
+        import db
         await db.save_trace(trace, user_id=user_id, conversation_id=conversation_id)
     except Exception as e:
         logger.warning("[TRACE] failed to persist trace %s: %s", trace.trace_id, e)
@@ -295,7 +295,7 @@ async def stream_agent(
         if agent_id == "agent2" and user_id:
             try:
                 from agents.agent4_validator import validate_resume
-                from app import db
+                import db
                 context = await db.retrieve_resume_context(user_id)
                 if context and context.get("fact_sheet"):
                     validation = await validate_resume(context["fact_sheet"], full_response)
@@ -373,7 +373,7 @@ async def stream_interview_session(
     Async generator that yields SSE data lines followed by [PANEL] and [DONE].
     """
     from pathlib import Path
-    from app import db
+    import db
 
     eval_template = Path("prompts/agent4_interview_evaluation.txt").read_text()
     coaching_template = Path("prompts/agent4_interview_coaching.txt").read_text()

@@ -23,7 +23,7 @@ async def get_or_create(
       2. Postgres — hydrates cache after a container restart.
       3. Create — new conversation row + empty history.
     """
-    from app import db  # local import to avoid circular deps at module load
+    import db  # local import to avoid circular deps at module load
 
     if conversation_id is None:
         conversation_id = str(uuid.uuid4())

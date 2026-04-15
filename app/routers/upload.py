@@ -13,7 +13,7 @@ import io
 
 from fastapi import APIRouter, BackgroundTasks, Depends, Form, HTTPException, UploadFile
 
-from app import db, rag
+import db, rag
 from middleware.auth import get_current_user
 from db import get_or_create_user
 from tracing import logger

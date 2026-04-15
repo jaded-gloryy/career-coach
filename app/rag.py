@@ -164,7 +164,7 @@ async def build_and_store_embedding(
 ) -> None:
     """Compress resume to fact sheet, embed the JSON, and persist both.
     Designed to run as a background task — logs errors but does not raise."""
-    from app import db  # local import to avoid circular deps at module load
+    import db  # local import to avoid circular deps at module load
 
     fact_sheet = await compress_resume(content, version, job_fit_score)
     if fact_sheet is None:
