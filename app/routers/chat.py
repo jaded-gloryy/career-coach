@@ -93,6 +93,13 @@ async def chat(agent_id: str, body: ChatRequest, auth_id: str = Depends(get_curr
     num = _agent_num(agent_id)
     sid, history = await session.get_or_create(body.conversation_id, user_id, num)
 
+    # P9: Guard against non-intake agents starting a new conversation.
+    if not history and agent_id != "agent1":
+        raise HTTPException(
+            status_code=400,
+            detail="New conversations must start with Agent 1 (Intake). Please switch to the Intake agent first.",
+        )
+
     response_text = await call_agent(
         system_prompt, history, body.message,
         agent_id=agent_id, user_id=user_id,
@@ -117,6 +124,13 @@ async def chat_stream(agent_id: str, body: ChatRequest, auth_id: str = Depends(g
     num = _agent_num(agent_id)
     sid, history = await session.get_or_create(body.conversation_id, user_id, num)
 
+    # P9: Guard against non-intake agents starting a new conversation.
+    if not history and agent_id != "agent1":
+        raise HTTPException(
+            status_code=400,
+            detail="New conversations must start with Agent 1 (Intake). Please switch to the Intake agent first.",
+        )
+
     # Route Agent 3 + practice intent → Mode B interview coaching loop
     if agent_id == "agent3" and _is_practice_intent(body.message):
         asyncio.create_task(db.append_message(sid, "user", body.message))
@@ -124,6 +138,8 @@ async def chat_stream(agent_id: str, body: ChatRequest, auth_id: str = Depends(g
 
         async def on_panel_interview(panel_json: dict):
             await db.upsert_conversation_panel_state(sid, panel_json)
+            if panel_json.get("job_title"):
+                asyncio.create_task(db.update_conversation_job_title(sid, panel_json["job_title"]))
 
         return StreamingResponse(
             stream_interview_session(
@@ -163,6 +179,8 @@ async def chat_stream(agent_id: str, body: ChatRequest, auth_id: str = Depends(g
 
     async def on_panel(panel_json: dict):
         await db.upsert_conversation_panel_state(sid, panel_json)
+        if panel_json.get("job_title"):
+            asyncio.create_task(db.update_conversation_job_title(sid, panel_json["job_title"]))
 
     async def _stream_with_confirm():
         """Wrap stream_agent and append [CONFIRM_SAVE] after [DONE] for gated roles."""

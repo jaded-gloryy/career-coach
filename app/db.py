@@ -62,19 +62,6 @@ async def get_or_create_user(auth_id: str) -> str:
         if row:
             return str(row["user_id"])
 
-        # Legacy case: pre-migration records where auth_id was stored directly
-        # as user_id (before the auth_id column was added). Backfill auth_id
-        # so future lookups hit the normal path.
-        legacy_row = await conn.fetchrow(
-            "SELECT user_id FROM users WHERE user_id = $1::uuid", auth_id
-        )
-        if legacy_row:
-            await conn.execute(
-                "UPDATE users SET auth_id = $1 WHERE user_id = $2::uuid",
-                auth_id, auth_id,
-            )
-            return str(legacy_row["user_id"])
-
         new_id = uuid.uuid4()
         await conn.execute(
             "INSERT INTO users (user_id, auth_id) VALUES ($1, $2)",
@@ -301,6 +288,16 @@ async def list_conversations(user_id: str) -> list[dict]:
         }
         for r in rows
     ]
+
+
+async def update_conversation_job_title(conversation_id: str, job_title: str) -> None:
+    """Set job_title on a conversation when Agent 1 reports it via a panel update."""
+    pool = get_pool()
+    async with pool.acquire() as conn:
+        await conn.execute(
+            "UPDATE conversations SET job_title=$1 WHERE id=$2::uuid",
+            job_title, conversation_id,
+        )
 
 
 async def upsert_conversation_panel_state(conversation_id: str, panel_state: dict) -> None:

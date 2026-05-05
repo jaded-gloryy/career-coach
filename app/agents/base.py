@@ -90,22 +90,33 @@ def _get_model(agent_id: str, history: list, message: str = "") -> str:
 # Context injection
 # ---------------------------------------------------------------------------
 
+def _blocks_to_text(blocks: list[dict]) -> str:
+    """Concatenate text blocks for logging/tracing (not sent to API)."""
+    return "".join(b.get("text", "") for b in blocks)
+
+
 async def _augment_system_prompt(
     agent_id: str,
     system_prompt: str,
     user_id: Optional[str],
     trace: Optional[Trace] = None,
-) -> str:
-    """Append retrieved context to the system prompt when user_id is present.
+) -> list[dict]:
+    """Build system prompt as a content block array with cache_control on eligible blocks.
 
-    agent1 + agent4: inject latest ResumeFactSheet + job fit score history.
-    agent2: inject tone descriptors from session_state.
-    Records what was found/missing on trace.context_injected if trace is provided.
+    Returns list[dict] for the Anthropic messages.stream(system=...) kwarg.
+    Anthropic SDK accepts system as str or list[dict] — both are valid.
+
+    Cache strategy:
+      Agent 2 static block (~1,200–1,500 tok) → P2: cache_control ephemeral
+      Agent 2 intake summary (~1,525–1,639 tok) → P3: second cache breakpoint
+      Agent 3 injected context (~1,600–3,700 tok) → P4: cache_control ephemeral
     """
+    static_block: dict = {"type": "text", "text": system_prompt}
+
     if user_id is None:
         if trace is not None:
             trace.context_injected = {"user_id": None}
-        return system_prompt
+        return [static_block]
 
     import db  # local import to avoid circular deps at module load
 
@@ -118,7 +129,7 @@ async def _augment_system_prompt(
             history_str = ", ".join(
                 f"v{s['version']}={s['score']}" for s in context.get("score_history", [])
             ) or "none"
-            block = (
+            context_text = (
                 "\n\n---\nRESUME CONTEXT (retrieved)\n"
                 f"Version: {context['version']}\n"
                 f"Job titles: {', '.join(fs.get('job_titles', []))}\n"
@@ -138,7 +149,8 @@ async def _augment_system_prompt(
             }
             if trace is not None:
                 trace.context_injected = ctx_info
-            return system_prompt + block
+            # Agent 1 static (~650 tok) is below the 1,024-token cache threshold — no cache_control.
+            return [static_block, {"type": "text", "text": context_text}]
         else:
             ctx_info = {"resume_context": None}
 
@@ -151,46 +163,63 @@ async def _augment_system_prompt(
             "tone_profile": list(tone["tone"]) if tone and tone.get("tone") else None,
         }
 
-        parts = ["\n\n---\nPRE-LOADED CONTEXT"]
+        # P2: Agent 2 static prompt (~1,200–1,500 tok) — mark for caching.
+        cached_static = {**static_block, "cache_control": {"type": "ephemeral"}}
+        blocks: list[dict] = [cached_static]
+
         if intake and intake.get("content"):
-            parts.append(f"Intake Summary (from Agent 1):\n{intake['content']}")
+            # P3: Intake summary as a second cache breakpoint (~1,525–1,639 tok).
+            blocks.append({
+                "type": "text",
+                "text": f"\n\n---\nPRE-LOADED CONTEXT\nIntake Summary (from Agent 1):\n{intake['content']}\n---",
+                "cache_control": {"type": "ephemeral"},
+            })
+
         if tone and tone.get("tone"):
             descriptors = ", ".join(tone["tone"])
             notes = tone.get("style_notes", "")
-            parts.append(
-                f"Tone Profile: {descriptors}\nStyle notes: {notes}"
-            )
-        parts.append("---")
+            blocks.append({
+                "type": "text",
+                "text": f"Tone Profile: {descriptors}\nStyle notes: {notes}",
+            })
 
-        if len(parts) > 2:  # only inject if we have something beyond the headers
+        if len(blocks) > 1:
             if trace is not None:
                 trace.context_injected = ctx_info
-            return system_prompt + "\n".join(parts)
+            return blocks
 
     elif agent_id == "agent3":
         intake = await db.get_latest_document(user_id, "intake_summary")
         rewrite = await db.get_latest_document(user_id, "resume_rewrite")
+        project_ctx = await db.get_latest_document(user_id, "project_context")  # P11
 
         ctx_info = {
             "intake_summary": bool(intake and intake.get("content")),
             "resume_rewrite": bool(rewrite and rewrite.get("content")),
+            "project_context": bool(project_ctx and project_ctx.get("content")),
         }
 
-        parts = ["\n\n---\nPRE-LOADED CONTEXT"]
+        context_parts: list[str] = []
         if intake and intake.get("content"):
-            parts.append(f"Intake Summary:\n{intake['content']}")
+            context_parts.append(f"Intake Summary:\n{intake['content']}")
         if rewrite and rewrite.get("content"):
-            parts.append(f"Latest Resume Rewrite:\n{rewrite['content']}")
-        parts.append("---")
+            context_parts.append(f"Latest Resume Rewrite:\n{rewrite['content']}")
+        if project_ctx and project_ctx.get("content"):
+            context_parts.append(f"Project Context:\n{project_ctx['content']}")  # P11
 
-        if len(parts) > 2:
+        if context_parts:
+            # P4: Combined injected context (~1,600–3,700 tok) — cache it.
+            context_text = "\n\n---\nPRE-LOADED CONTEXT\n" + "\n\n".join(context_parts) + "\n---"
             if trace is not None:
                 trace.context_injected = ctx_info
-            return system_prompt + "\n".join(parts)
+            return [
+                static_block,
+                {"type": "text", "text": context_text, "cache_control": {"type": "ephemeral"}},
+            ]
 
     if trace is not None:
         trace.context_injected = ctx_info if ctx_info else {"no_context": True}
-    return system_prompt
+    return [static_block]
 
 
 # ---------------------------------------------------------------------------
@@ -239,9 +268,10 @@ async def stream_agent(
     model = _get_model(agent_id, history, message=user_message)
     trace.model = model
 
-    augmented_prompt = await _augment_system_prompt(agent_id, system_prompt, user_id, trace=trace)
-    trace.system_prompt_length = len(augmented_prompt)
-    trace.system_prompt_preview = augmented_prompt[:500]
+    augmented_blocks = await _augment_system_prompt(agent_id, system_prompt, user_id, trace=trace)
+    augmented_text = _blocks_to_text(augmented_blocks)
+    trace.system_prompt_length = len(augmented_text)
+    trace.system_prompt_preview = augmented_text[:500]
 
     logger.info(
         "[AUGMENT] agent=%s user_id=%s context_injected=%s prompt_len=%d",
@@ -255,7 +285,7 @@ async def stream_agent(
         async with _async_client.messages.stream(
             model=model,
             max_tokens=4096,
-            system=augmented_prompt,
+            system=augmented_blocks,
             messages=messages,
         ) as stream:
             async for text in stream.text_stream:
@@ -400,15 +430,25 @@ async def stream_interview_session(
         .replace("{question}", current_question or "")
         .replace("{answer}", user_message)
     )
+    eval_trace = Trace(agent_id="agent4_eval")
+    eval_trace.history_message_count = len(history)
+    eval_trace.model = AGENT_MODELS["agent4_eval"]["model"]
     try:
         eval_response = await _async_client.messages.create(
             model=AGENT_MODELS["agent4_eval"]["model"],
             max_tokens=512,
             messages=[{"role": "user", "content": eval_prompt}],
         )
+        eval_usage = eval_response.usage
+        eval_trace.input_tokens = eval_usage.input_tokens
+        eval_trace.output_tokens = eval_usage.output_tokens
+        eval_trace.cache_read_input_tokens = getattr(eval_usage, "cache_read_input_tokens", None)
+        eval_trace.cache_creation_input_tokens = getattr(eval_usage, "cache_creation_input_tokens", None)
         evaluation = json.loads(eval_response.content[0].text.strip())
-    except Exception:
+    except Exception as e:
+        eval_trace.errors.append(str(e))
         evaluation = {"score": 0, "gaps": [], "follow_up": None}
+    asyncio.create_task(_save_trace(eval_trace, user_id, conversation_id))
 
     score = evaluation.get("score", 0)
 
@@ -437,6 +477,11 @@ async def stream_interview_session(
         "{evaluation_json}", json.dumps(evaluation, indent=2)
     )
 
+    coaching_trace = Trace(agent_id="agent4_coaching")
+    coaching_trace.history_message_count = len(history)
+    coaching_trace.model = AGENT_MODELS["agent4_coaching"]["model"]
+    coaching_trace.system_prompt_length = len(coaching_prompt)
+
     full_response = ""
     try:
         async with _async_client.messages.stream(
@@ -448,9 +493,24 @@ async def stream_interview_session(
             async for text in stream.text_stream:
                 full_response += text
                 yield f"data: {text.replace(chr(10), chr(92) + 'n')}\n\n"
+
+            try:
+                final_message = await stream.get_final_message()
+                usage = final_message.usage
+                coaching_trace.input_tokens = usage.input_tokens
+                coaching_trace.output_tokens = usage.output_tokens
+                coaching_trace.cache_read_input_tokens = getattr(usage, "cache_read_input_tokens", None)
+                coaching_trace.cache_creation_input_tokens = getattr(usage, "cache_creation_input_tokens", None)
+            except Exception as usage_err:
+                logger.warning("[TRACE] interview coaching usage capture failed: %s", usage_err)
     except Exception as e:
+        coaching_trace.errors.append(str(e))
+        asyncio.create_task(_save_trace(coaching_trace, user_id, conversation_id))
         yield f"data: [ERROR] {str(e)}\n\n"
         return
+
+    coaching_trace.response_length = len(full_response)
+    asyncio.create_task(_save_trace(coaching_trace, user_id, conversation_id))
 
     # Extract PANEL_UPDATE from coaching response
     panel_json = None
@@ -482,14 +542,14 @@ async def call_agent(
 ) -> str:
     """Call the LLM and return the full response text."""
     model = _get_model(agent_id, history, message=user_message)
-    augmented_prompt = await _augment_system_prompt(agent_id, system_prompt, user_id)
-    logger.info("[CALL] agent=%s model=%s prompt_len=%d", agent_id, model, len(augmented_prompt))
+    augmented_blocks = await _augment_system_prompt(agent_id, system_prompt, user_id)
+    logger.info("[CALL] agent=%s model=%s prompt_len=%d", agent_id, model, len(_blocks_to_text(augmented_blocks)))
     messages = _build_messages(history, user_message)
 
     response = await _async_client.messages.create(
         model=model,
         max_tokens=4096,
-        system=augmented_prompt,
+        system=augmented_blocks,
         messages=messages,
     )
     return response.content[0].text

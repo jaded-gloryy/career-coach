@@ -1,46 +1,20 @@
-import { createContext, useContext, useEffect, useState } from 'react'
-import { getSupabase } from '../lib/supabase'
+import { useAuth as useClerkAuth, useUser } from '@clerk/react'
 
-const AuthContext = createContext()
-
+// AuthProvider is kept as a no-op so existing call sites in App.jsx don't break.
+// Real auth state flows from ClerkProvider (mounted in main.jsx).
 export function AuthProvider({ children }) {
-  const [session, setSession] = useState(null)
-  const [loading, setLoading] = useState(true)
-
-  useEffect(() => {
-    const sb = getSupabase()
-    sb.auth.getSession().then(({ data }) => {
-      setSession(data.session)
-      setLoading(false)
-    })
-    const { data: { subscription } } = sb.auth.onAuthStateChange((_event, s) => {
-      setSession(s)
-      console.log('[auth] user id:', s?.user?.id ?? 'logged out')
-    })
-    return () => subscription.unsubscribe()
-  }, [])
-
-  async function signIn(email, password) {
-    const { data, error } = await getSupabase().auth.signInWithPassword({ email, password })
-    if (error) throw error
-    return data
-  }
-
-  async function signUp(email, password) {
-    const { data, error } = await getSupabase().auth.signUp({ email, password })
-    if (error) throw error
-    return data
-  }
-
-  async function signOut() {
-    await getSupabase().auth.signOut()
-  }
-
-  return (
-    <AuthContext.Provider value={{ session, loading, signIn, signOut, signUp }}>
-      {children}
-    </AuthContext.Provider>
-  )
+  return children
 }
 
-export const useAuth = () => useContext(AuthContext)
+export function useAuth() {
+  const { isLoaded: authLoaded, isSignedIn, getToken, signOut, userId } = useClerkAuth()
+  const { isLoaded: userLoaded, user } = useUser()
+  return {
+    isSignedIn: isSignedIn ?? false,
+    isLoaded: authLoaded && userLoaded,
+    getToken,
+    signOut,
+    userId,
+    user,
+  }
+}

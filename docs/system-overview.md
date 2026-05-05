@@ -14,7 +14,7 @@ A Dockerized multi-agent career coaching application. Users upload a resume, cha
 | Backend | FastAPI | Async, uvicorn server |
 | LLM | Anthropic Claude | Sonnet for rewrites/coaching, Haiku for evaluation/edits |
 | Database | PostgreSQL 16 + pgvector | Vector similarity for RAG; asyncpg connection pool |
-| Auth | Supabase (external) | JWT issued by Supabase, verified server-side via service role key |
+| Auth | Clerk (external) | JWT issued by Clerk, verified server-side via middleware |
 | Embeddings | Ollama `nomic-embed-text` | 768-dim vectors; graceful fallback if unavailable |
 | Containerization | Docker + Docker Compose | Multi-stage build (Node → Python) |
 | Frontend | Vite 6 + React 18 | Migrated from vanilla HTML/JS |
@@ -34,7 +34,7 @@ career-coach/
 │
 ├── app/
 │   ├── main.py                 # FastAPI entry: mounts routers + static files, serves /env.js
-│   ├── config.py               # Env vars (OPENAI_BASE_URL, LLM_MODEL, Supabase keys)
+│   ├── config.py               # Env vars (ANTHROPIC_API_KEY, AGENT_MODELS, GENERAL_MODEL, Clerk keys)
 │   ├── models.py               # Pydantic request/response schemas
 │   ├── session.py              # Two-layer conversation cache: L1 in-memory, L2 PostgreSQL
 │   ├── db.py                   # asyncpg pool, get_or_create_user(), retrieve_resume_context()
@@ -42,17 +42,17 @@ career-coach/
 │   ├── tracing.py              # Trace dataclass; per-request metrics emitted as [TRACE] SSE events
 │   │
 │   ├── agents/
-│   │   ├── base.py             # stream_agent(): context injection, SSE streaming, validation gate
+│   │   ├── base.py             # stream_agent(): context injection (block array + cache_control), SSE streaming, validation gate
 │   │   ├── agent1_intake.py    # Intake & job fit analysis
 │   │   ├── agent2_resume.py    # Resume rewriting (Sonnet first, Haiku edits)
 │   │   ├── agent3_interview.py # Interview prep + practice loop (Mode B)
 │   │   └── agent4_validator.py # Resume fact-checking, evaluation, coaching sub-modes
 │   │
 │   ├── middleware/
-│   │   └── auth.py             # get_current_user() FastAPI dependency; verifies Supabase JWT
+│   │   └── auth.py             # get_current_user() FastAPI dependency; verifies Clerk JWT
 │   │
 │   ├── routers/
-│   │   ├── chat.py             # POST /chat/{agent_id}/stream, POST /chat/confirm-save
+│   │   ├── chat.py             # POST /chat/{agent_id}/stream, POST /chat/confirm-save; new-conversation routing guard
 │   │   ├── files.py            # GET /files/list, GET /files/{filename}
 │   │   └── upload.py           # POST /upload/resume — PDF/DOCX text extraction
 │   │
@@ -60,8 +60,7 @@ career-coach/
 │
 ├── frontend/                   # React source (Vite project)
 │   ├── src/
-│   │   ├── lib/supabase.js     # Lazy createClient from window.__ENV__
-│   │   ├── contexts/           # AuthContext (session), ChatContext (reducer)
+│   │   ├── contexts/           # AuthContext (Clerk session), ChatContext (reducer)
 │   │   ├── hooks/              # useStream, useFileAttachments, useAutoResize
 │   │   └── components/
 │   │       ├── auth/           # AuthScreen (sign-in/sign-up tabs)
@@ -76,7 +75,8 @@ career-coach/
 │   └── migrations/
 │       ├── 001_add_auth_id.sql              # Adds auth_id (UUID) column + index to users table
 │       ├── 002_conversation_panel_state.sql # Adds panel_state JSONB to conversations
-│       └── 003_add_request_traces.sql       # Adds request_traces table for LLM telemetry
+│       ├── 003_add_request_traces.sql       # Adds request_traces table for LLM telemetry
+│       └── 004_clerk_auth_id.sql            # Converts auth_id from UUID → TEXT for Clerk compatibility
 │
 ├── prompts/                    # System prompt files for each agent sub-mode
 └── outputs/                    # Downloaded files (Docker volume mount)
@@ -95,13 +95,17 @@ Four agents handle distinct phases of the coaching workflow:
 | Agent 3 — Interview Coach | Interview prep + interactive practice loop (Mode B) | Haiku evaluation + Sonnet coaching |
 | Agent 4 — Validator | Fact-checks resume claims; three sub-modes: validation, evaluation, coaching | Haiku |
 
-### Context Injection (RAG)
+### Context Injection (RAG) + Prompt Caching
 
-Every LLM call is augmented in `_augment_system_prompt()` (`base.py`):
+Every LLM call is augmented in `_augment_system_prompt()` (`base.py`), which returns a `list[dict]` block array (not a plain string) so individual blocks can carry `cache_control`:
 
-- **Agent 1 & 4** receive: compressed resume fact sheet + job fit score history
-- **Agent 2** receives: intake summary from Agent 1 + tone profile (extracted by Haiku)
-- **Agent 3** receives: intake summary + latest resume rewrite from `documents` table
+| Agent | Context injected | Cache strategy |
+|---|---|---|
+| Agent 1 & 4 | Compressed resume fact sheet + job fit score history | No cache (static prompt ~650 tok, below 1,024-token threshold) |
+| Agent 2 | Intake summary from Agent 1 + tone profile | Static prompt block cached (P2); intake summary as second cache breakpoint (P3) — ~88% input reduction after turn 1 |
+| Agent 3 | Intake summary + latest resume rewrite + project context docs | Combined injected context cached (P4) — ~1,600–3,700 tok at 90% discount |
+
+Cache hits are captured in `cache_read_input_tokens` / `cache_creation_input_tokens` on the `Trace` and persisted to `request_traces`.
 
 Tone profiles and resume fact sheets are generated asynchronously by `rag.py` using Haiku's structured output (Pydantic schemas). Embeddings are generated via Ollama `nomic-embed-text` (768-dim) for vector similarity retrieval.
 
@@ -129,12 +133,12 @@ Panel updates are embedded inline in agent text using `__PANEL_UPDATE__…__END_
 
 | Layer | Mechanism |
 |---|---|
-| Auth provider | Supabase (external service) |
+| Auth provider | Clerk (external service) |
 | Token type | JWT (Bearer token in Authorization header) |
-| Server verification | `app/middleware/auth.py` calls `supabase.auth.get_user()` with service role key |
-| User mapping | `get_or_create_user(auth_id)` in `db.py` maps Supabase UUID → internal `user_id` on every request |
-| Frontend config | FastAPI serves `/env.js` injecting `SUPABASE_URL` + `SUPABASE_ANON_KEY` into `window.__ENV__` at runtime |
-| Session management | React `AuthContext` wraps `onAuthStateChange`; JWT passed in all fetch requests |
+| Server verification | `app/middleware/auth.py` verifies Clerk JWT using Clerk secret key |
+| User mapping | `get_or_create_user(auth_id)` in `db.py` maps Clerk user ID → internal `user_id` on every request; `auth_id` column is TEXT (migration 004) |
+| Frontend config | Clerk publishable key configured at build time via environment variable |
+| Session management | React `AuthContext` uses Clerk React SDK (`@clerk/clerk-react`); JWT passed in all fetch requests |
 
 ---
 
@@ -142,10 +146,11 @@ Panel updates are embedded inline in agent text using `__PANEL_UPDATE__…__END_
 
 | Table | Purpose |
 |---|---|
-| `users` | Internal user records; `auth_id` column links to Supabase UUID |
+| `users` | Internal user records; `auth_id` column (TEXT) links to Clerk user ID |
 | `session_state` | Per-user mutable state (tone profile, current job title, etc.) |
 | `messages` | Full conversation history; `metadata` JSONB stores Mode B interview session state |
-| `documents` | Persisted agent outputs (intake summary, resume rewrite, interview prep) |
+| `documents` | Persisted agent outputs (intake summary, resume rewrite, interview prep, project context) |
+| `conversations` | Conversation records; `job_title` column populated from Agent 1 panel updates via `update_conversation_job_title()` |
 | `resume_facts` | Compressed fact sheets + pgvector embeddings for RAG retrieval |
 | `request_traces` | Per-request LLM telemetry: real input/output/cache token counts, system prompt length, history depth, latency. Primary source for prompt creep detection. |
 
@@ -161,6 +166,7 @@ Conversation memory uses two-layer caching: **L1** in-memory dict (fast path), *
 - Token counts are real values from `stream.get_final_message().usage` (Anthropic API), not estimates — includes `input_tokens`, `output_tokens`, `cache_read_input_tokens`, `cache_creation_input_tokens`
 - Emitted as `[TRACE]` SSE event after every request (success and error paths)
 - **Persisted** to `request_traces` table (fire-and-forget `asyncio.create_task`) for historical querying
+- **Interview sessions** (`stream_interview_session`) produce two traces per turn: `agent4_eval` (Haiku evaluation) and `agent4_coaching` (Sonnet coaching), both persisted to `request_traces`
 - Frontend renders as a collapsible `TracePanel` card attached to each assistant message
 - Structured logging via Python `logging` module; `logger.info/warning/error` with `%s` parameterized format
 
@@ -199,7 +205,7 @@ This gates database writes behind explicit user approval.
 
 | Concern | Implementation |
 |---|---|
-| Auth session | `AuthContext` — `useReducer`-free; `useState(session)` + Supabase listener |
+| Auth session | `AuthContext` — Clerk React SDK (`useUser`, `useAuth`); JWT passed in all fetch requests |
 | Chat state | `ChatContext` — `useReducer` with 7 actions: `SET_AGENT`, `PUSH_MSG`, `APPEND_CHUNK`, `FINALIZE_MSG`, `PUSH_CARD`, `APPLY_PANEL`, `SET_STREAMING` |
 | SSE parsing | `useStream` hook — `fetch` + `ReadableStream`, routes all event types to reducer |
 | File uploads | `useFileAttachments` hook — `consumeFiles()` one-shot pattern clears after send |
@@ -221,14 +227,18 @@ Dev server: `npm run dev` proxies `/chat`, `/upload`, `/files`, `/env.js` to Fas
 
 ---
 
+## Routing Guards
+
+`POST /chat/{agent_id}` and `POST /chat/{agent_id}/stream` enforce that new conversations must begin with Agent 1 (Intake). If `history` is empty and `agent_id != "agent1"`, the endpoint returns HTTP 400. This prevents agents such as Agent 4 (Validator) from being used as intake, which caused incorrect "Starting Your Career Transition" responses in early conversations.
+
+---
+
 ## Environment Variables
 
 | Variable | Used by |
 |---|---|
-| `OPENAI_BASE_URL` | LLM API base URL (OpenAI-compatible) |
-| `LLM_MODEL` | Model name passed to API |
+| `ANTHROPIC_API_KEY` | Anthropic Claude API (all agent calls) |
 | `DATABASE_URL` | PostgreSQL connection string |
-| `SUPABASE_URL` | Supabase project URL (served to frontend via `/env.js`) |
-| `SUPABASE_ANON_KEY` / `SUPABASE_PUBLISHABLE_API_KEY` | Frontend client init |
-| `SUPABASE_SECRET_API_KEY` / `SUPABASE_SERVICE_ROLE_KEY` | Server-side JWT verification |
+| `CLERK_SECRET_KEY` | Server-side JWT verification (`middleware/auth.py`) |
+| `CLERK_PUBLISHABLE_KEY` | Frontend Clerk SDK init |
 | `OLLAMA_BASE_URL` | Embedding service (optional; embeddings skipped if absent) |

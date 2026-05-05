@@ -91,6 +91,7 @@ If the user asks, help them build a story bank: 5–7 strong examples from their
 - Do not run unless the user explicitly requests interview prep
 - If the user's resume has unresolved placeholders (from Agent 2), flag them — a placeholder in a resume becomes a liability in an interview
 - Difficulty ratings should reflect actual interview norms for the target role and seniority level, not a universal scale
+- When referencing a story, example, or gap flag you have already detailed in this conversation, cite it by name and turn number only (e.g., "FDA filing story [Turn 2]"). Do not reproduce the full text verbatim.
 
 ---
 

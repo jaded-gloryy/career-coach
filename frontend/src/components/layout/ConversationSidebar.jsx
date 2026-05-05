@@ -57,7 +57,7 @@ function getPreview(conv) {
 }
 
 export function ConversationSidebar({ conversations, loading, onConversationLoad }) {
-  const { session } = useAuth()
+  const { getToken } = useAuth()
   const { state, dispatch } = useChat()
   const [loadingId, setLoadingId] = useState(null)
 
@@ -65,8 +65,9 @@ export function ConversationSidebar({ conversations, loading, onConversationLoad
     if (conv.id === state.conversationId) return
     setLoadingId(conv.id)
     try {
+      const token = await getToken()
       const res = await fetch(`/chat/conversations/${conv.id}/messages`, {
-        headers: { Authorization: `Bearer ${session.access_token}` },
+        headers: { Authorization: `Bearer ${token}` },
       })
       console.log('Fetch messages response: ', res)
       if (!res.ok) return

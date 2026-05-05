@@ -2,7 +2,7 @@ import { useAuth } from '../contexts/AuthContext'
 import { useChat } from '../contexts/ChatContext'
 
 export function useStream() {
-  const { session } = useAuth()
+  const { getToken } = useAuth()
   const { dispatch } = useChat()
 
   async function sendMessage(agentId, conversationId, message) {
@@ -10,11 +10,12 @@ export function useStream() {
     dispatch({ type: 'PUSH_MSG', role: 'user', text: message })
     dispatch({ type: 'PUSH_MSG', role: 'assistant', text: '' })
 
+    const token = await getToken()
     const res = await fetch(`/chat/${agentId}/stream`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
-        'Authorization': `Bearer ${session.access_token}`,
+        'Authorization': `Bearer ${token}`,
       },
       body: JSON.stringify({ conversation_id: conversationId, message }),
     })

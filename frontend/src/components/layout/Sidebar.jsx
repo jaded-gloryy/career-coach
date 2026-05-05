@@ -52,18 +52,20 @@ function getPreview(conv) {
 export function Sidebar({ conversations, loading, onConversationLoad }) {
   const [open, setOpen] = useState(true)
   const [loadingId, setLoadingId] = useState(null)
-  const { session, signOut } = useAuth()
+  const { signOut, getToken, user } = useAuth()
   const { state, dispatch } = useChat()
   const { theme, setTheme, themes } = useTheme()
 
-  const userInitial = session?.user?.email?.[0]?.toUpperCase() ?? 'U'
+  const userEmail = user?.emailAddresses?.[0]?.emailAddress
+  const userInitial = userEmail?.[0]?.toUpperCase() ?? 'U'
 
   async function handleSelect(conv) {
     if (conv.id === state.conversationId) return
     setLoadingId(conv.id)
     try {
+      const token = await getToken()
       const res = await fetch(`/chat/conversations/${conv.id}/messages`, {
-        headers: { Authorization: `Bearer ${session.access_token}` },
+        headers: { Authorization: `Bearer ${token}` },
       })
       if (!res.ok) return
       const data = await res.json()
@@ -226,7 +228,7 @@ export function Sidebar({ conversations, loading, onConversationLoad }) {
             <div className="w-6 h-6 rounded-full bg-brand-500 text-white text-[0.65rem] font-semibold flex items-center justify-center flex-shrink-0">
               {userInitial}
             </div>
-            <span className="text-[0.75rem] text-gray-500 truncate">{session?.user?.email}</span>
+            <span className="text-[0.75rem] text-gray-500 truncate">{userEmail}</span>
           </div>
         )}
         {!open && (

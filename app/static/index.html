@@ -1,16 +1,1375 @@
 <!DOCTYPE html>
 <html lang="en">
-  <head>
-    <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Career Coach</title>
-    <link rel="preconnect" href="https://fonts.googleapis.com">
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=Fraunces:ital,wght@0,300;0,600;1,300&display=swap" rel="stylesheet">
-    <script src="/env.js"></script>
-    <script type="module" crossorigin src="/assets/index-DwGLSw80.js"></script>
-    <link rel="stylesheet" crossorigin href="/assets/index-BNMsRyQG.css">
-  </head>
-  <body>
-    <div id="root"></div>
-  </body>
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Career Coach</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=Fraunces:ital,wght@0,300;0,600;1,300&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --pink-50:  #fff0f5;
+    --pink-100: #ffd6e7;
+    --pink-200: #ffadd2;
+    --pink-400: #f472b6;
+    --pink-500: #ec4899;
+    --pink-600: #db2777;
+    --pink-700: #be185d;
+    --gray-50:  #fafafa;
+    --gray-200: #e5e5e5;
+    --gray-400: #a3a3a3;
+    --gray-600: #525252;
+    --gray-800: #262626;
+    --radius:   12px;
+  }
+
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    font-family: 'Inter', sans-serif;
+    background: var(--pink-50);
+    color: var(--gray-800);
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    padding: 2rem 1rem;
+  }
+
+  /* ── Header ── */
+  header {
+    text-align: center;
+    margin-bottom: 2rem;
+  }
+
+  header h1 {
+    font-family: 'Fraunces', serif;
+    font-weight: 600;
+    font-size: 2.25rem;
+    color: var(--pink-700);
+    letter-spacing: -0.5px;
+  }
+
+  header p {
+    margin-top: 0.375rem;
+    font-size: 0.9rem;
+    color: var(--gray-400);
+  }
+
+  /* ── Main card ── */
+  .card {
+    width: 100%;
+    max-width: 720px;
+    background: #fff;
+    border-radius: var(--radius);
+    box-shadow: 0 4px 24px rgba(236, 72, 153, 0.08);
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
+  }
+
+  /* ── Agent switcher ── */
+  #agent-switcher {
+    display: flex;
+    gap: 0.5rem;
+    padding: 1rem 1.25rem;
+    border-bottom: 1px solid var(--pink-100);
+    background: var(--pink-50);
+    flex-wrap: wrap;
+  }
+
+  #agent-switcher button {
+    font-family: 'Inter', sans-serif;
+    font-size: 0.8rem;
+    font-weight: 500;
+    padding: 0.4rem 1rem;
+    border-radius: 999px;
+    border: 1.5px solid var(--pink-200);
+    background: #fff;
+    color: var(--pink-600);
+    cursor: pointer;
+    transition: background 0.15s, color 0.15s, border-color 0.15s;
+  }
+
+  #agent-switcher button:hover {
+    background: var(--pink-100);
+    border-color: var(--pink-400);
+  }
+
+  #agent-switcher button.active {
+    background: var(--pink-500);
+    border-color: var(--pink-500);
+    color: #fff;
+  }
+
+  /* ── Chat window ── */
+  #chat-window {
+    flex: 1;
+    min-height: 420px;
+    max-height: 520px;
+    overflow-y: auto;
+    padding: 1.5rem 1.25rem;
+    display: flex;
+    flex-direction: column;
+    gap: 1rem;
+  }
+
+  #chat-window:empty::before {
+    content: "Select an agent above or start the conversation.";
+    color: var(--gray-400);
+    font-size: 0.875rem;
+    font-style: italic;
+    margin: auto;
+    text-align: center;
+  }
+
+  .message {
+    display: flex;
+    flex-direction: column;
+    max-width: 82%;
+  }
+
+  .message.user   { align-self: flex-end; align-items: flex-end; }
+  .message.assistant { align-self: flex-start; align-items: flex-start; }
+
+  .message .bubble {
+    padding: 0.65rem 1rem;
+    border-radius: var(--radius);
+    font-size: 0.9rem;
+    line-height: 1.55;
+    white-space: pre-wrap;
+    word-break: break-word;
+  }
+
+  .message.user .bubble {
+    background: var(--pink-500);
+    color: #fff;
+    border-bottom-right-radius: 3px;
+  }
+
+  .message.assistant .bubble {
+    background: var(--pink-50);
+    color: var(--gray-800);
+    border: 1px solid var(--pink-100);
+    border-bottom-left-radius: 3px;
+  }
+
+  .message .meta {
+    font-size: 0.7rem;
+    color: var(--gray-400);
+    margin-top: 0.25rem;
+    padding: 0 0.25rem;
+  }
+
+  /* ── Input area ── */
+  #chat-form {
+    padding: 0.875rem 1.25rem;
+    border-top: 1px solid var(--pink-100);
+    background: var(--gray-50);
+  }
+
+  /* Expandable wrapper: shows chips + input row */
+  #input-wrapper {
+    display: flex;
+    flex-direction: column;
+    border: 1.5px solid var(--pink-200);
+    border-radius: 16px;
+    background: #fff;
+    transition: border-color 0.15s;
+    overflow: hidden;
+  }
+
+  #input-wrapper:focus-within {
+    border-color: var(--pink-400);
+  }
+
+  /* ── File chips row ── */
+  #file-chips {
+    display: none;
+    flex-wrap: wrap;
+    gap: 0.5rem;
+    padding: 0.625rem 0.75rem 0.25rem;
+    border-bottom: 1px solid var(--pink-100);
+  }
+
+  #file-chips.has-files {
+    display: flex;
+  }
+
+  .file-chip {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.3rem;
+    padding: 0.25rem 0.5rem 0.25rem 0.625rem;
+    background: var(--pink-100);
+    color: var(--pink-700);
+    border-radius: 999px;
+    font-size: 0.75rem;
+    font-weight: 500;
+    max-width: 200px;
+    cursor: pointer;
+    transition: background 0.15s;
+    position: relative;
+  }
+
+  .file-chip:hover {
+    background: var(--pink-200);
+  }
+
+  .file-chip .chip-name {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .file-chip .chip-remove {
+    flex-shrink: 0;
+    width: 14px;
+    height: 14px;
+    border-radius: 50%;
+    background: var(--pink-400);
+    color: #fff;
+    font-size: 0.65rem;
+    line-height: 14px;
+    text-align: center;
+    opacity: 0;
+    transition: opacity 0.15s;
+    user-select: none;
+  }
+
+  .file-chip:hover .chip-remove {
+    opacity: 1;
+  }
+
+  /* ── Input row (upload btn + text + send) ── */
+  #input-row {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 0.5rem 0.625rem;
+  }
+
+  /* Circular "+" upload button */
+  #upload-btn {
+    flex-shrink: 0;
+    width: 32px;
+    height: 32px;
+    border-radius: 50%;
+    border: 1.5px solid var(--pink-200);
+    background: #fff;
+    color: var(--pink-500);
+    font-size: 1.3rem;
+    line-height: 1;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: background 0.15s, border-color 0.15s, color 0.15s;
+    padding: 0;
+  }
+
+  #upload-btn:hover {
+    background: var(--pink-50);
+    border-color: var(--pink-400);
+    color: var(--pink-600);
+  }
+
+  #upload-btn:disabled {
+    opacity: 0.4;
+    cursor: not-allowed;
+  }
+
+  #message-input {
+    flex: 1;
+    font-family: 'Inter', sans-serif;
+    font-size: 0.9rem;
+    border: none;
+    outline: none;
+    background: transparent;
+    color: var(--gray-800);
+    min-width: 0;
+    resize: none;
+    overflow-y: hidden;
+    max-height: 160px;
+    line-height: 1.5;
+    padding-top: 2px;
+  }
+
+  #message-input::placeholder { color: var(--gray-400); }
+
+  #chat-form button[type="submit"] {
+    font-family: 'Inter', sans-serif;
+    font-size: 0.875rem;
+    font-weight: 500;
+    padding: 0.45rem 1.1rem;
+    background: var(--pink-500);
+    color: #fff;
+    border: none;
+    border-radius: 999px;
+    cursor: pointer;
+    transition: background 0.15s;
+    white-space: nowrap;
+    flex-shrink: 0;
+  }
+
+  #chat-form button[type="submit"]:hover { background: var(--pink-600); }
+  #chat-form button[type="submit"]:disabled { background: var(--pink-200); cursor: not-allowed; }
+
+  /* ── Download button on assistant messages ── */
+  .download-btn {
+    font-family: 'Inter', sans-serif;
+    font-size: 0.7rem;
+    font-weight: 500;
+    margin-top: 0.35rem;
+    padding: 0.3rem 0.75rem;
+    border: 1.5px solid var(--pink-300, #f9a8d4);
+    border-radius: 999px;
+    background: #fff;
+    color: var(--pink-600);
+    cursor: pointer;
+    transition: background 0.15s;
+  }
+
+  .download-btn:hover { background: var(--pink-50); }
+
+  /* ── Debug trace panel ── */
+  .trace-panel {
+    margin-top: 0.4rem;
+    border: 1px solid #e2e8f0;
+    border-radius: 8px;
+    font-size: 0.75rem;
+    font-family: 'Menlo', 'Consolas', monospace;
+    background: #f8fafc;
+    overflow: hidden;
+  }
+
+  .trace-panel summary {
+    padding: 0.35rem 0.75rem;
+    cursor: pointer;
+    color: #64748b;
+    user-select: none;
+    list-style: none;
+  }
+
+  .trace-panel summary::-webkit-details-marker { display: none; }
+  .trace-panel[open] summary { border-bottom: 1px solid #e2e8f0; }
+
+  .trace-body { padding: 0.6rem 0.75rem; display: flex; flex-direction: column; gap: 0.5rem; }
+
+  .trace-section h4 { font-size: 0.65rem; text-transform: uppercase; letter-spacing: 0.06em; color: #94a3b8; margin-bottom: 0.25rem; font-family: 'Inter', sans-serif; }
+
+  .trace-section pre { white-space: pre-wrap; word-break: break-word; color: #334155; line-height: 1.4; margin: 0; }
+
+  .ctx-present { color: #16a34a; }
+  .ctx-missing  { color: #dc2626; }
+
+  /* ── Validation result card ── */
+  .validation-card {
+    margin-top: 0.5rem;
+    border-radius: 8px;
+    padding: 0.65rem 0.9rem;
+    font-size: 0.8rem;
+    border: 1px solid;
+  }
+
+  .validation-card.pass    { background: #f0fdf4; border-color: #86efac; color: #166534; }
+  .validation-card.needs-revision { background: #fffbeb; border-color: #fcd34d; color: #92400e; }
+  .validation-card.skipped { background: #f8fafc; border-color: #cbd5e1; color: #64748b; }
+  .validation-card.error   { background: #fef2f2; border-color: #fca5a5; color: #991b1b; }
+
+  .validation-card .val-header { font-weight: 600; margin-bottom: 0.35rem; }
+
+  .validation-flag { margin-top: 0.4rem; padding-top: 0.4rem; border-top: 1px solid rgba(0,0,0,0.08); }
+  .validation-flag .claim { font-style: italic; }
+  .validation-flag .issue { font-weight: 500; opacity: 0.8; }
+  .validation-flag .suggestion { font-size: 0.75rem; opacity: 0.7; margin-top: 0.1rem; }
+
+  /* ── Confirm-save card ── */
+  .confirm-card {
+    margin-top: 0.5rem;
+    border: 1.5px solid var(--pink-200);
+    border-radius: 8px;
+    padding: 0.75rem 1rem;
+    background: var(--pink-50);
+    font-size: 0.82rem;
+  }
+
+  .confirm-card .confirm-title {
+    font-weight: 600;
+    color: var(--pink-700);
+    margin-bottom: 0.5rem;
+  }
+
+  .confirm-card textarea {
+    width: 100%;
+    min-height: 80px;
+    max-height: 240px;
+    padding: 0.5rem;
+    border: 1px solid var(--pink-200);
+    border-radius: 6px;
+    font-family: 'Inter', sans-serif;
+    font-size: 0.78rem;
+    resize: vertical;
+    background: #fff;
+    color: var(--gray-800);
+    margin-bottom: 0.5rem;
+  }
+
+  .confirm-card .confirm-hint {
+    font-size: 0.72rem;
+    color: var(--gray-400);
+    margin-bottom: 0.6rem;
+  }
+
+  .confirm-actions { display: flex; gap: 0.5rem; flex-wrap: wrap; }
+
+  .confirm-actions button {
+    font-family: 'Inter', sans-serif;
+    font-size: 0.75rem;
+    font-weight: 500;
+    padding: 0.35rem 0.9rem;
+    border-radius: 999px;
+    border: 1.5px solid;
+    cursor: pointer;
+    transition: background 0.15s;
+  }
+
+  .btn-save-memory { background: var(--pink-500); border-color: var(--pink-500); color: #fff; }
+  .btn-save-memory:hover { background: var(--pink-600); border-color: var(--pink-600); }
+  .btn-skip-memory { background: #fff; border-color: var(--gray-200); color: var(--gray-600); }
+  .btn-skip-memory:hover { background: var(--gray-50); }
+
+  /* ── Save button ── */
+  #save-btn {
+    font-family: 'Inter', sans-serif;
+    font-size: 0.8rem;
+    font-weight: 500;
+    margin-top: 0.875rem;
+    padding: 0.45rem 1rem;
+    border: 1.5px solid var(--pink-400);
+    border-radius: 999px;
+    background: #fff;
+    color: var(--pink-600);
+    cursor: pointer;
+    transition: background 0.15s;
+    align-self: center;
+  }
+
+  #save-btn:hover { background: var(--pink-50); }
+
+  /* ── Scrollbar ── */
+  #chat-window::-webkit-scrollbar { width: 5px; }
+  #chat-window::-webkit-scrollbar-track { background: transparent; }
+  #chat-window::-webkit-scrollbar-thumb { background: var(--pink-200); border-radius: 999px; }
+
+  /* ── Progress Panel ── */
+  #progress-panel {
+    border-bottom: 1px solid var(--pink-100);
+    background: var(--gray-50);
+    font-size: 0.8rem;
+  }
+
+  .panel-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 0.625rem 1.25rem 0.5rem;
+    border-bottom: 1px solid var(--pink-100);
+    color: var(--gray-600);
+    gap: 1rem;
+    flex-wrap: wrap;
+  }
+
+  .panel-header strong { color: var(--gray-800); font-weight: 600; }
+
+  .panel-body {
+    display: grid;
+    grid-template-columns: 140px 1fr;
+    gap: 0;
+  }
+
+  .panel-score {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 0.25rem;
+    padding: 0.75rem 1rem;
+    border-right: 1px solid var(--pink-100);
+  }
+
+  .score-ring {
+    position: relative;
+    width: 56px;
+    height: 56px;
+  }
+
+  .score-ring svg {
+    width: 56px;
+    height: 56px;
+    transform: rotate(-90deg);
+  }
+
+  .score-ring circle {
+    fill: none;
+    stroke-width: 5;
+  }
+
+  .score-ring .track { stroke: var(--pink-100); }
+
+  .score-ring .fill {
+    stroke: var(--gray-200);
+    stroke-linecap: round;
+    stroke-dasharray: 150.8;
+    stroke-dashoffset: 150.8;
+    transition: stroke-dashoffset 0.6s ease, stroke 0.4s ease;
+  }
+
+  .score-ring .score-text {
+    position: absolute;
+    inset: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 0.8rem;
+    font-weight: 600;
+    color: var(--gray-800);
+  }
+
+  .score-label {
+    font-size: 0.7rem;
+    color: var(--gray-400);
+    text-align: center;
+  }
+
+  .panel-summary {
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    gap: 0.35rem;
+    padding: 0.75rem 1.25rem;
+  }
+
+  .panel-summary .summary-line {
+    color: var(--gray-600);
+    line-height: 1.4;
+  }
+
+  .panel-summary .summary-label {
+    color: var(--gray-400);
+    font-size: 0.7rem;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+  }
+
+  /* ── Upload skeleton chip ── */
+  .file-chip.skeleton {
+    background: linear-gradient(90deg, var(--pink-100) 25%, var(--pink-50) 50%, var(--pink-100) 75%);
+    background-size: 200% 100%;
+    animation: shimmer 1.2s infinite;
+    color: transparent;
+    user-select: none;
+    pointer-events: none;
+  }
+
+  .file-chip.skeleton .chip-remove { display: none; }
+
+  @keyframes shimmer {
+    0%   { background-position: 200% 0; }
+    100% { background-position: -200% 0; }
+  }
+</style>
+<script src="/env.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+</head>
+<body>
+<!-- Auth Screen — shown when no session is active -->
+<div id="auth-screen" style="display:none; position:fixed; inset:0; background:var(--pink-50); z-index:1000; align-items:center; justify-content:center; flex-direction:column; gap:1.5rem;">
+<div style="text-align:center;">
+  <h1 style="font-family:'Fraunces',serif; font-weight:600; font-size:2rem; color:var(--pink-700); letter-spacing:-0.5px; margin:0;">Career Coach</h1>
+  <p style="margin-top:0.375rem; font-size:0.9rem; color:var(--gray-400);">Your multi-agent career coaching assistant</p>
+</div>
+<div style="background:#fff; padding:2rem; border-radius:var(--radius); width:360px; box-shadow:0 4px 24px rgba(236,72,153,0.08); border:1px solid var(--pink-100);">
+  <div id="auth-mode-tabs" style="display:flex; gap:0.5rem; margin-bottom:1.5rem;">
+    <button id="tab-signin" onclick="switchAuthTab('signin')"
+      style="flex:1; padding:0.45rem; font-family:'Inter',sans-serif; font-size:0.85rem; font-weight:500; border-radius:999px; border:1.5px solid var(--pink-500); background:var(--pink-500); color:#fff; cursor:pointer;">Sign In</button>
+    <button id="tab-signup" onclick="switchAuthTab('signup')"
+      style="flex:1; padding:0.45rem; font-family:'Inter',sans-serif; font-size:0.85rem; font-weight:500; border-radius:999px; border:1.5px solid var(--pink-200); background:#fff; color:var(--pink-600); cursor:pointer;">Create Account</button>
+  </div>
+  <input id="auth-email" type="email" placeholder="Email" autocomplete="email"
+    style="width:100%; box-sizing:border-box; margin-bottom:0.75rem; padding:0.55rem 0.85rem; background:#fff; border:1.5px solid var(--pink-200); color:var(--gray-800); border-radius:8px; font-size:0.9rem; font-family:'Inter',sans-serif; outline:none; transition:border-color 0.15s;"
+    onfocus="this.style.borderColor='var(--pink-400)'" onblur="this.style.borderColor='var(--pink-200)'">
+  <input id="auth-password" type="password" placeholder="Password" autocomplete="current-password"
+    style="width:100%; box-sizing:border-box; margin-bottom:1rem; padding:0.55rem 0.85rem; background:#fff; border:1.5px solid var(--pink-200); color:var(--gray-800); border-radius:8px; font-size:0.9rem; font-family:'Inter',sans-serif; outline:none; transition:border-color 0.15s;"
+    onfocus="this.style.borderColor='var(--pink-400)'" onblur="this.style.borderColor='var(--pink-200)'"
+    onkeydown="if(event.key==='Enter') currentAuthTab==='signin'?signIn():signUp()">
+  <div id="auth-error" style="color:#ef4444; margin-bottom:0.75rem; font-size:0.82rem; display:none; padding:0.5rem 0.75rem; background:#fef2f2; border-radius:6px; border:1px solid #fecaca;"></div>
+  <div id="auth-success" style="color:#16a34a; margin-bottom:0.75rem; font-size:0.82rem; display:none; padding:0.5rem 0.75rem; background:#f0fdf4; border-radius:6px; border:1px solid #bbf7d0;"></div>
+  <button id="auth-submit-btn" onclick="submitAuth()"
+    style="width:100%; padding:0.65rem; background:var(--pink-500); color:#fff; border:none; border-radius:999px; cursor:pointer; font-size:0.9rem; font-family:'Inter',sans-serif; font-weight:500; transition:background 0.15s;"
+    onmouseover="this.style.background='var(--pink-600)'" onmouseout="this.style.background='var(--pink-500)'">Sign In</button>
+</div>
+</div>
+<header>
+  <h1>Career Coach</h1>
+  <p>Your multi-agent career coaching assistant</p>
+  <button onclick="signOut()" id="signout-btn" style="display:none; font-family:'Inter',sans-serif; font-size:0.8rem; font-weight:500; margin-top:0.5rem; padding:0.35rem 0.9rem; border:1.5px solid var(--pink-200); border-radius:999px; background:#fff; color:var(--pink-600); cursor:pointer; transition:background 0.15s;">Sign out</button>
+</header>
+
+<div class="card" style="margin-bottom: 30px;">
+  <!-- Progress panel -->
+  <div id="progress-panel">
+    <div class="panel-header">
+      <span>Active Agent: <strong id="panel-agent">Intake &amp; Fit</strong></span>
+      <span>Job Title: <strong id="panel-job-title">Not yet determined</strong></span>
+    </div>
+    <div class="panel-body">
+      <div class="panel-score">
+        <div class="score-ring">
+          <svg viewBox="0 0 60 60">
+            <circle class="track" cx="30" cy="30" r="24"/>
+            <circle class="fill" id="score-circle" cx="30" cy="30" r="24"/>
+          </svg>
+          <div class="score-text" id="score-value">—</div>
+        </div>
+        <div class="score-label">Job Fit Score</div>
+      </div>
+      <div class="panel-summary">
+        <div class="summary-label">Session Summary</div>
+        <div class="summary-line" id="panel-last-action">No actions yet</div>
+        <div class="summary-line" id="panel-sections"></div>
+      </div>
+    </div>
+  </div>
+</div>
+<div class="card">
+  <!-- Agent switcher -->
+  <div id="agent-switcher">
+    <button data-agent="agent1">Intake &amp; Fit</button>
+    <button data-agent="agent2">Resume</button>
+    <button data-agent="agent3">Interview</button>
+    <button data-agent="agent4">Validator</button>
+  </div>
+
+  <!-- Chat window -->
+  <div id="chat-window"></div>
+
+  <!-- Message input with inline upload -->
+  <form id="chat-form">
+    <input id="file-input" type="file" multiple accept=".txt,.rtf, .json,.md,.docx,.pdf" style="display:none" />
+    <div id="input-wrapper">
+      <!-- File chips (visible when files are attached) -->
+      <div id="file-chips"></div>
+      <!-- Input row -->
+      <div id="input-row">
+        <button type="button" id="upload-btn" title="Attach files" aria-label="Attach files">
+          <svg width="14" height="14" viewBox="0 0 14 14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round">
+            <line x1="7" y1="1" x2="7" y2="13"/>
+            <line x1="1" y1="7" x2="13" y2="7"/>
+          </svg>
+        </button>
+        <textarea id="message-input" rows="1" placeholder="Type a message..." autocomplete="off"></textarea>
+        <button type="submit">Send</button>
+      </div>
+    </div>
+  </form>
+</div>
+
+<script>
+  // ── State ──────────────────────────────────────────────────────────────────
+  let conversationId = crypto.randomUUID();
+  let activeAgent = null;
+  let streaming = false;
+
+  // Each entry: { id, name, text }
+  let attachedFiles = [];
+  let nextFileId = 0;
+
+  // ── Supabase Auth ────────────────────────────────────────────────────────────
+  // CDN global is `supabase` (var); use _sb for the client to avoid redeclaration error
+  const _sb = supabase.createClient(
+    window.__ENV__.SUPABASE_URL,
+    window.__ENV__.SUPABASE_ANON_KEY
+  )
+  let currentSession = null
+  let currentAuthTab = 'signin'
+
+  function switchAuthTab(tab) {
+    currentAuthTab = tab
+    const signinTab = document.getElementById('tab-signin')
+    const signupTab = document.getElementById('tab-signup')
+    const submitBtn = document.getElementById('auth-submit-btn')
+    const active = 'background:var(--pink-500); color:#fff; border-color:var(--pink-500);'
+    const inactive = 'background:#fff; color:var(--pink-600); border-color:var(--pink-200);'
+    if (tab === 'signin') {
+      signinTab.style.cssText += active
+      signupTab.style.cssText += inactive
+      submitBtn.textContent = 'Sign In'
+    } else {
+      signupTab.style.cssText += active
+      signinTab.style.cssText += inactive
+      submitBtn.textContent = 'Create Account'
+    }
+    clearAuthMessages()
+  }
+
+  function showAuthScreen() {
+    const s = document.getElementById('auth-screen')
+    s.style.display = 'flex'
+    document.getElementById('signout-btn').style.display = 'none'
+  }
+
+  function hideAuthScreen() {
+    document.getElementById('auth-screen').style.display = 'none'
+    document.getElementById('signout-btn').style.display = ''
+  }
+
+  function showAuthError(msg) {
+    const el = document.getElementById('auth-error')
+    el.textContent = msg
+    el.style.display = 'block'
+    document.getElementById('auth-success').style.display = 'none'
+  }
+
+  function showAuthSuccess(msg) {
+    const el = document.getElementById('auth-success')
+    el.textContent = msg
+    el.style.display = 'block'
+    document.getElementById('auth-error').style.display = 'none'
+  }
+
+  function clearAuthMessages() {
+    document.getElementById('auth-error').style.display = 'none'
+    document.getElementById('auth-success').style.display = 'none'
+  }
+
+  async function submitAuth() {
+    if (currentAuthTab === 'signin') await signIn()
+    else await signUp()
+  }
+
+  async function signIn() {
+    clearAuthMessages()
+    const email = document.getElementById('auth-email').value.trim()
+    const password = document.getElementById('auth-password').value
+    const btn = document.getElementById('auth-submit-btn')
+    btn.disabled = true; btn.textContent = 'Signing in…'
+    const { data, error } = await _sb.auth.signInWithPassword({ email, password })
+    btn.disabled = false; btn.textContent = 'Sign In'
+    if (error) { showAuthError(error.message); return }
+    initApp(data.session)
+  }
+
+  async function signUp() {
+    clearAuthMessages()
+    const email = document.getElementById('auth-email').value.trim()
+    const password = document.getElementById('auth-password').value
+    if (password.length < 6) { showAuthError('Password must be at least 6 characters.'); return }
+    const btn = document.getElementById('auth-submit-btn')
+    btn.disabled = true; btn.textContent = 'Creating account…'
+    const { data, error } = await _sb.auth.signUp({ email, password })
+    btn.disabled = false; btn.textContent = 'Create Account'
+    if (error) { showAuthError(error.message); return }
+    if (data.session) {
+      initApp(data.session)
+    } else {
+      // Email confirmation required
+      showAuthSuccess('Account created! Check your email to confirm before signing in.')
+    }
+  }
+
+  async function signOut() {
+    await _sb.auth.signOut()
+    currentSession = null
+    showAuthScreen()
+  }
+
+  function initApp(session) {
+    currentSession = session
+    hideAuthScreen()
+  }
+
+  // On page load — restore existing session
+  ;(async () => {
+    const { data: { session } } = await _sb.auth.getSession()
+    if (session) initApp(session)
+    else showAuthScreen()
+  })()
+
+  // Keep session fresh on token refresh / sign-out events
+  _sb.auth.onAuthStateChange((_event, session) => {
+    if (session) initApp(session)
+    else { currentSession = null; showAuthScreen() }
+  })
+  // ── End Supabase Auth ────────────────────────────────────────────────────────
+
+  // Panel state (frontend session only — does not persist across refresh)
+  const panelState = {
+    jobFitScore: null,
+    jobTitle: null,
+    lastAction: null,
+    sectionsModified: null,
+  };
+
+  const AGENT_LABELS = {
+    agent1: 'Intake & Fit',
+    agent2: 'Resume Coach',
+    agent3: 'Interview Coach',
+    agent4: 'Validator',
+  };
+
+  // ── Panel rendering ────────────────────────────────────────────────────────
+  function renderPanel() {
+    // Score ring
+    const circle = document.getElementById('score-circle');
+    const scoreEl = document.getElementById('score-value');
+    const circumference = 150.8;
+
+    if (panelState.jobFitScore !== null) {
+      const pct = Math.max(0, Math.min(100, panelState.jobFitScore));
+      const offset = circumference * (1 - pct / 100);
+      circle.style.strokeDashoffset = offset;
+      const color = pct >= 75 ? '#22c55e' : pct >= 50 ? '#f59e0b' : '#ef4444';
+      circle.style.stroke = color;
+      scoreEl.textContent = pct;
+    } else {
+      circle.style.strokeDashoffset = circumference;
+      circle.style.stroke = 'var(--gray-200)';
+      scoreEl.textContent = '—';
+    }
+
+    // Job title
+    document.getElementById('panel-job-title').textContent =
+      panelState.jobTitle || 'Not yet determined';
+
+    // Last action
+    document.getElementById('panel-last-action').textContent =
+      panelState.lastAction || 'No actions yet';
+
+    // Sections modified
+    const sectEl = document.getElementById('panel-sections');
+    sectEl.textContent = panelState.sectionsModified !== null
+      ? `${panelState.sectionsModified} section${panelState.sectionsModified !== 1 ? 's' : ''} revised`
+      : '';
+  }
+
+  function applyPanelUpdate(data) {
+    if (data.job_fit_score !== null && data.job_fit_score !== undefined)
+      panelState.jobFitScore = data.job_fit_score;
+    if (data.job_title !== null && data.job_title !== undefined)
+      panelState.jobTitle = data.job_title;
+    if (data.last_action !== null && data.last_action !== undefined)
+      panelState.lastAction = data.last_action;
+    if (data.sections_modified !== null && data.sections_modified !== undefined)
+      panelState.sectionsModified = data.sections_modified;
+    renderPanel();
+  }
+
+  // ── Agent switcher ─────────────────────────────────────────────────────────
+  const agentBtns = document.querySelectorAll('#agent-switcher button');
+  agentBtns.forEach(btn => {
+    btn.addEventListener('click', () => {
+      const agent = btn.dataset.agent;
+      if (agent === activeAgent) return;
+      activeAgent = agent;
+      conversationId = crypto.randomUUID();
+
+      agentBtns.forEach(b => b.classList.remove('active'));
+      btn.classList.add('active');
+
+      document.getElementById('chat-window').innerHTML = '';
+      document.getElementById('panel-agent').textContent = AGENT_LABELS[agent] || agent;
+    });
+  });
+
+  // Auto-select agent1 on load
+  document.querySelector('#agent-switcher button[data-agent="agent1"]').click();
+
+  // ── File attachment ────────────────────────────────────────────────────────
+  const fileInput = document.getElementById('file-input');
+  const fileChipsEl = document.getElementById('file-chips');
+  const uploadBtn = document.getElementById('upload-btn');
+
+  uploadBtn.addEventListener('click', () => {
+    if (!streaming) fileInput.click();
+  });
+
+  fileInput.addEventListener('change', async () => {
+    const files = Array.from(fileInput.files);
+    fileInput.value = '';
+    if (!files.length) return;
+
+    for (const file of files) {
+      await uploadFile(file);
+    }
+  });
+
+  async function uploadFile(file) {
+    // Show skeleton chip while uploading
+    const skeletonId = `sk-${nextFileId}`;
+    renderSkeletonChip(skeletonId, file.name);
+
+    const form = new FormData();
+    form.append('file', file);
+    try {
+      if (!currentSession) { showAuthScreen(); return }
+      const res = await fetch('/upload/resume', { method: 'POST', body: form, headers: { 'Authorization': `Bearer ${currentSession.access_token}` } });
+      removeSkeletonChip(skeletonId);
+      if (!res.ok) {
+        const err = await res.json();
+        alert(`Upload failed: ${err.detail || res.status}`);
+        return;
+      }
+      const data = await res.json();
+      const id = nextFileId++;
+      attachedFiles.push({ id, name: file.name, text: data.extracted_text });
+      renderChip(id, file.name);
+    } catch (err) {
+      removeSkeletonChip(skeletonId);
+      alert(`Upload error: ${err.message}`);
+    }
+  }
+
+  function renderSkeletonChip(skeletonId, name) {
+    const chip = document.createElement('div');
+    chip.className = 'file-chip skeleton';
+    chip.dataset.skeletonId = skeletonId;
+
+    const nameEl = document.createElement('span');
+    nameEl.className = 'chip-name';
+    nameEl.textContent = name;
+    chip.appendChild(nameEl);
+
+    const removeEl = document.createElement('span');
+    removeEl.className = 'chip-remove';
+    chip.appendChild(removeEl);
+
+    fileChipsEl.appendChild(chip);
+    fileChipsEl.classList.add('has-files');
+  }
+
+  function removeSkeletonChip(skeletonId) {
+    const chip = fileChipsEl.querySelector(`[data-skeleton-id="${skeletonId}"]`);
+    if (chip) chip.remove();
+    if (!fileChipsEl.children.length) fileChipsEl.classList.remove('has-files');
+  }
+
+  function renderChip(id, name) {
+    const chip = document.createElement('div');
+    chip.className = 'file-chip';
+    chip.dataset.id = id;
+
+    const nameEl = document.createElement('span');
+    nameEl.className = 'chip-name';
+    nameEl.textContent = name;
+
+    const removeEl = document.createElement('span');
+    removeEl.className = 'chip-remove';
+    removeEl.textContent = '✕';
+    removeEl.title = 'Remove';
+
+    chip.appendChild(nameEl);
+    chip.appendChild(removeEl);
+
+    chip.addEventListener('click', () => removeFile(id));
+
+    fileChipsEl.appendChild(chip);
+    fileChipsEl.classList.add('has-files');
+  }
+
+  function removeFile(id) {
+    attachedFiles = attachedFiles.filter(f => f.id !== id);
+    const chip = fileChipsEl.querySelector(`[data-id="${id}"]`);
+    if (chip) chip.remove();
+    if (!attachedFiles.length) fileChipsEl.classList.remove('has-files');
+  }
+
+  function consumeFiles() {
+    const texts = attachedFiles.map(f => f.text);
+    attachedFiles = [];
+    fileChipsEl.innerHTML = '';
+    fileChipsEl.classList.remove('has-files');
+    return texts;
+  }
+
+  // ── Helpers ────────────────────────────────────────────────────────────────
+  function addUserMessage(text) {
+    const win = document.getElementById('chat-window');
+    const wrap = document.createElement('div');
+    wrap.className = 'message user';
+    const bubble = document.createElement('div');
+    bubble.className = 'bubble';
+    bubble.textContent = text;
+    wrap.appendChild(bubble);
+    win.appendChild(wrap);
+    win.scrollTop = win.scrollHeight;
+  }
+
+  function createAssistantBubble() {
+    const win = document.getElementById('chat-window');
+    const wrap = document.createElement('div');
+    wrap.className = 'message assistant';
+    const bubble = document.createElement('div');
+    bubble.className = 'bubble';
+    wrap.appendChild(bubble);
+    win.appendChild(wrap);
+    win.scrollTop = win.scrollHeight;
+    return { wrap, bubble };
+  }
+
+  function addDownloadButton(wrap, getText) {
+    const dlBtn = document.createElement('button');
+    dlBtn.className = 'download-btn';
+    dlBtn.textContent = 'Download .md';
+    dlBtn.addEventListener('click', () => downloadMd(getText()));
+    wrap.appendChild(dlBtn);
+  }
+
+  function downloadMd(text) {
+    const blob = new Blob([text], { type: 'text/markdown' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `response-${Date.now()}.md`;
+    a.click();
+    URL.revokeObjectURL(url);
+  }
+
+  function renderValidationCard(validation, parentWrap) {
+    const verdict = (validation.verdict || (validation.flags && validation.flags.length ? 'needs_revision' : 'pass')).replace('_', '-')
+    const verdictLabel = {
+      'pass': '✓ Validation: Pass',
+      'needs-revision': '⚠ Validation: Needs Revision',
+      'skipped': '— Validation: Skipped',
+      'error': '✕ Validation: Error',
+    }[verdict] || `Validation: ${verdict}`
+
+    const card = document.createElement('div')
+    card.className = `validation-card ${verdict}`
+
+    const header = document.createElement('div')
+    header.className = 'val-header'
+    header.textContent = verdictLabel
+    card.appendChild(header)
+
+    if (validation.reason) {
+      const reason = document.createElement('div')
+      reason.style.fontSize = '0.75rem'
+      reason.textContent = validation.reason
+      card.appendChild(reason)
+    }
+
+    if (validation.flags && validation.flags.length > 0) {
+      validation.flags.forEach(f => {
+        const flag = document.createElement('div')
+        flag.className = 'validation-flag'
+        flag.innerHTML = `<div class="claim">&#8220;${f.claim}&#8221;</div><div class="issue">${(f.issue || '').replace(/_/g, ' ')}</div><div class="suggestion">${f.suggestion || ''}</div>`
+        card.appendChild(flag)
+      })
+    }
+
+    if (parentWrap) {
+      parentWrap.appendChild(card)
+    } else {
+      const container = document.getElementById('messages')
+      container.appendChild(card)
+      container.scrollTop = container.scrollHeight
+    }
+    return card
+  }
+
+  function renderConfirmCard(data, parentWrap) {
+    const roleLabels = {
+      intake_summary: 'Intake Summary',
+      resume_rewrite: 'Resume Rewrite',
+      interview_prep: 'Interview Prep',
+    }
+    const label = roleLabels[data.role] || data.role
+
+    const card = document.createElement('div')
+    card.className = 'confirm-card'
+
+    const title = document.createElement('div')
+    title.className = 'confirm-title'
+    title.textContent = `Save to Memory: ${label}`
+    card.appendChild(title)
+
+    const hint = document.createElement('div')
+    hint.className = 'confirm-hint'
+    hint.textContent = 'This will be used as context for future agent conversations. You can edit before saving.'
+    card.appendChild(hint)
+
+    const textarea = document.createElement('textarea')
+    textarea.value = data.content
+    textarea.disabled = true
+    card.appendChild(textarea)
+
+    const actions = document.createElement('div')
+    actions.className = 'confirm-actions'
+
+    async function doSave(content) {
+      const token = currentSession ? currentSession.access_token : ''
+      try {
+        const r = await fetch('/chat/confirm-save', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+          body: JSON.stringify({ conversation_id: data.conversation_id, role: data.role, content, confirmed: true }),
+        })
+        const result = await r.json()
+        card.innerHTML = `<div class="confirm-title" style="color:#16a34a;">✓ Saved to Memory: ${label}</div>`
+        console.log('[CONFIRM_SAVE] saved', result)
+      } catch (e) {
+        card.innerHTML += `<div style="color:#dc2626;font-size:0.75rem;">Save failed: ${e.message}</div>`
+      }
+    }
+
+    async function doSkip() {
+      const token = currentSession ? currentSession.access_token : ''
+      await fetch('/chat/confirm-save', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+        body: JSON.stringify({ conversation_id: data.conversation_id, role: data.role, content: data.content, confirmed: false }),
+      }).catch(() => {})
+      card.innerHTML = `<div class="confirm-title" style="color:#64748b;">— Skipped: ${label} not saved to memory</div>`
+    }
+
+    const btnSave = document.createElement('button')
+    btnSave.className = 'btn-save-memory'
+    btnSave.textContent = 'Save to Memory'
+    btnSave.onclick = () => doSave(textarea.value)
+
+    const btnEdit = document.createElement('button')
+    btnEdit.className = 'btn-skip-memory'
+    btnEdit.textContent = 'Edit'
+    btnEdit.onclick = () => {
+      textarea.disabled = !textarea.disabled
+      btnEdit.textContent = textarea.disabled ? 'Edit' : 'Done Editing'
+    }
+
+    const btnSkip = document.createElement('button')
+    btnSkip.className = 'btn-skip-memory'
+    btnSkip.textContent = 'Skip'
+    btnSkip.onclick = doSkip
+
+    actions.appendChild(btnSave)
+    actions.appendChild(btnEdit)
+    actions.appendChild(btnSkip)
+    card.appendChild(actions)
+
+    if (parentWrap) {
+      parentWrap.appendChild(card)
+    } else {
+      const container = document.getElementById('messages')
+      container.appendChild(card)
+      container.scrollTop = container.scrollHeight
+    }
+  }
+
+  function renderTracePanel(trace, parentWrap) {
+    const panel = document.createElement('details')
+    panel.className = 'trace-panel'
+
+    const summary = document.createElement('summary')
+    summary.textContent = `🔍 Debug · ${trace.agent_id} · ${trace.model} · ${trace.latency_ms}ms · ~${trace.token_count_approx} tokens`
+    panel.appendChild(summary)
+
+    const body = document.createElement('div')
+    body.className = 'trace-body'
+
+    // Context injected section
+    const ctxSection = document.createElement('div')
+    ctxSection.className = 'trace-section'
+    const ctxHeader = document.createElement('h4')
+    ctxHeader.textContent = 'Context Injected'
+    ctxSection.appendChild(ctxHeader)
+    const ctxPre = document.createElement('pre')
+    ctxPre.innerHTML = Object.entries(trace.context_injected || {}).map(([k, v]) => {
+      const missing = v === null || v === false || v === undefined
+      const cls = missing ? 'ctx-missing' : 'ctx-present'
+      return `<span class="${cls}">${k}: ${JSON.stringify(v)}</span>`
+    }).join('\n') || '<span class="ctx-missing">none</span>'
+    ctxSection.appendChild(ctxPre)
+    body.appendChild(ctxSection)
+
+    // System prompt preview
+    if (trace.system_prompt_preview) {
+      const spSection = document.createElement('div')
+      spSection.className = 'trace-section'
+      const spHeader = document.createElement('h4')
+      spHeader.textContent = `System Prompt Preview (${trace.system_prompt_length} chars)`
+      spSection.appendChild(spHeader)
+      const spPre = document.createElement('pre')
+      spPre.textContent = trace.system_prompt_preview
+      spSection.appendChild(spPre)
+      body.appendChild(spSection)
+    }
+
+    // Errors
+    if (trace.errors && trace.errors.length) {
+      const errSection = document.createElement('div')
+      errSection.className = 'trace-section'
+      const errHeader = document.createElement('h4')
+      errHeader.textContent = 'Errors'
+      errSection.appendChild(errHeader)
+      const errPre = document.createElement('pre')
+      errPre.style.color = '#dc2626'
+      errPre.textContent = trace.errors.join('\n')
+      errSection.appendChild(errPre)
+      body.appendChild(errSection)
+    }
+
+    panel.appendChild(body)
+
+    if (parentWrap) {
+      parentWrap.appendChild(panel)
+    } else {
+      const container = document.getElementById('messages')
+      container.appendChild(panel)
+    }
+  }
+
+  function setStreaming(on) {
+    streaming = on;
+    const btn = document.querySelector('#chat-form button[type="submit"]');
+    msgInput.disabled = on;
+    btn.disabled = on;
+    btn.textContent = on ? '…' : 'Send';
+    uploadBtn.disabled = on;
+  }
+
+  function scrollToBottom() {
+    const win = document.getElementById('chat-window');
+    win.scrollTop = win.scrollHeight;
+  }
+
+  // ── Send message ───────────────────────────────────────────────────────────
+  async function sendMessage(userMessage) {
+    if (!activeAgent) {
+      alert('Please select an agent first.');
+      return;
+    }
+
+    const filePreambles = consumeFiles();
+    const fullMessage = filePreambles.length
+      ? filePreambles.map(t => `Here is an attached document:\n\n${t}`).join('\n\n') + `\n\n${userMessage}`
+      : userMessage;
+
+    addUserMessage(userMessage);
+    setStreaming(true);
+
+    const { wrap, bubble } = createAssistantBubble();
+
+    try {
+      if (!currentSession) { showAuthScreen(); return }
+      const response = await fetch(`/chat/${activeAgent}/stream`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${currentSession.access_token}` },
+        body: JSON.stringify({ conversation_id: conversationId, message: fullMessage }),
+      });
+
+      if (!response.ok) {
+        bubble.textContent = `[HTTP ${response.status}]`;
+        setStreaming(false);
+        return;
+      }
+
+      const reader = response.body.getReader();
+      const decoder = new TextDecoder();
+      let buf = '';
+
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+        buf += decoder.decode(value, { stream: true });
+        const lines = buf.split('\n');
+        buf = lines.pop();
+        for (const line of lines) {
+          if (!line.startsWith('data: ')) continue;
+          const data = line.slice(6);
+          if (data === '[DONE]') {
+            // Strip any PANEL_UPDATE block that streamed into the bubble
+            bubble.textContent = bubble.textContent.replace(
+              /\n*__PANEL_UPDATE__[\s\S]*?__END_PANEL__\n*/g, ''
+            ).trimEnd();
+            addDownloadButton(wrap, () => bubble.textContent);
+            setStreaming(false);
+            // Don't return — keep reading for [CONFIRM_SAVE] and [TRACE] events
+            continue;
+          }
+          if (data.startsWith('[PANEL] ')) {
+            try {
+              const panelData = JSON.parse(data.slice(8));
+              applyPanelUpdate(panelData);
+            } catch (_) {}
+            continue;
+          }
+          if (data.startsWith('[VALIDATION] ')) {
+            try {
+              const validation = JSON.parse(data.slice('[VALIDATION] '.length))
+              renderValidationCard(validation, wrap)
+              scrollToBottom()
+            } catch(e) { console.warn('Failed to parse validation data', e) }
+            continue;
+          }
+          if (data.startsWith('[CONFIRM_SAVE] ')) {
+            try {
+              const saveData = JSON.parse(data.slice('[CONFIRM_SAVE] '.length))
+              renderConfirmCard(saveData, wrap)
+              scrollToBottom()
+            } catch(e) { console.warn('Failed to parse confirm-save data', e) }
+            continue;
+          }
+          if (data.startsWith('[TRACE] ')) {
+            try {
+              const trace = JSON.parse(data.slice('[TRACE] '.length))
+              renderTracePanel(trace, wrap)
+            } catch(e) { console.warn('Failed to parse trace data', e) }
+            // After trace we're truly done
+            return;
+          }
+          if (data.startsWith('[ERROR]')) {
+            bubble.textContent += `\n\n${data}`;
+            setStreaming(false);
+            return;
+          }
+          // Only append to bubble while still streaming (before [DONE])
+          if (streaming) {
+            bubble.textContent += data.replace(/\\n/g, '\n');
+            scrollToBottom();
+          }
+        }
+      }
+    } catch (err) {
+      bubble.textContent += `\n\n[stream interrupted: ${err.message}]`;
+    } finally {
+      setStreaming(false);
+    }
+  }
+
+  // ── Textarea auto-resize ───────────────────────────────────────────────────
+  const msgInput = document.getElementById('message-input');
+  msgInput.addEventListener('input', () => {
+    msgInput.style.height = 'auto';
+    msgInput.style.height = msgInput.scrollHeight + 'px';
+  });
+  // Submit on Enter (Shift+Enter = newline)
+  msgInput.addEventListener('keydown', e => {
+    if (e.key === 'Enter' && !e.shiftKey) {
+      e.preventDefault();
+      document.getElementById('chat-form').requestSubmit();
+    }
+  });
+
+  // ── Chat form submit ───────────────────────────────────────────────────────
+  document.getElementById('chat-form').addEventListener('submit', e => {
+    e.preventDefault();
+    if (streaming) return;
+    const text = msgInput.value.trim();
+    if (!text) return;
+    msgInput.value = '';
+    msgInput.style.height = 'auto';
+    sendMessage(text);
+  });
+</script>
+</body>
 </html>

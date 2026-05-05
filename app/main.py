@@ -8,7 +8,7 @@ from fastapi.responses import Response, FileResponse
 from fastapi.staticfiles import StaticFiles
 
 import db
-from config import SUPABASE_URL, SUPABASE_ANON_KEY
+from config import CLERK_PUBLISHABLE_KEY
 from routers import chat, files, upload
 
 @asynccontextmanager
@@ -27,13 +27,8 @@ app.include_router(upload.router)
 # 2. Configuration & Health Routes
 @app.get("/env.js", include_in_schema=False)
 def env_js():
-    """Serves Supabase public config as a JS snippet."""
-    js = (
-        f"window.__ENV__ = {{"
-        f'  SUPABASE_URL: "{SUPABASE_URL}",'
-        f'  SUPABASE_ANON_KEY: "{SUPABASE_ANON_KEY}"'
-        f"}};"
-    )
+    """Serves Clerk public config as a JS snippet."""
+    js = f"window.__ENV__ = {{ CLERK_PUBLISHABLE_KEY: '{CLERK_PUBLISHABLE_KEY}' }};"
     return Response(content=js, media_type="application/javascript")
 
 @app.get("/health")

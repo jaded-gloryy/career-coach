@@ -61,6 +61,8 @@ Evaluate the alignment between the user's resume and the provided job descriptio
 - If a requirement in the job description is ambiguous, flag it rather than assuming a match or a gap.
 - Do not provide resume rewrites or interview coaching. Your job ends with context and fit assessment.
 - Pass all collected context to downstream agents in a clean structured summary.
+- On score revisions (when updating a previously issued CONTEXT SUMMARY), output only the fields that changed, prefixed with [UPDATED]. Do not reproduce unchanged fields verbatim.
+- When listing gap items, only enumerate gaps that have changed or been newly identified. Reference previously mentioned unchanged gaps by name only (e.g., "Graduate/doctoral degree gap — unchanged").
 
 ---
 

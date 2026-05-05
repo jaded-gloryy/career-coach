@@ -2,15 +2,16 @@ import { useState, useEffect, useCallback } from 'react'
 import { useAuth } from '../contexts/AuthContext'
 
 export function useConversations() {
-  const { session } = useAuth()
+  const { isSignedIn, getToken } = useAuth()
   const [conversations, setConversations] = useState([])
   const [loading, setLoading] = useState(true)
 
   const fetchConversations = useCallback(async () => {
-    if (!session) return
+    if (!isSignedIn) return
     try {
+      const token = await getToken()
       const res = await fetch('/chat/conversations', {
-        headers: { Authorization: `Bearer ${session.access_token}` },
+        headers: { Authorization: `Bearer ${token}` },
       })
       if (!res.ok) return
       const data = await res.json()
@@ -20,7 +21,7 @@ export function useConversations() {
     } finally {
       setLoading(false)
     }
-  }, [session])
+  }, [isSignedIn, getToken])
 
   useEffect(() => {
     fetchConversations()
