@@ -66,6 +66,10 @@ export function useStream() {
           dispatch({ type: 'SET_STREAMING', streaming: false })
           return
         }
+        if (/^\[[A-Z_]+\]/.test(data)) {
+          console.warn('unhandled SSE sentinel', data)
+          continue
+        }
 
         dispatch({ type: 'APPEND_CHUNK', chunk: data.replace(/\\n/g, '\n') })
       }
